@@ -1,0 +1,386 @@
+<title>DFM spg4 Euler Sampler — Step & CFG Sweep</title>
+<style>
+  @font-face {
+    font-family: 'Mono';
+    src: local('SF Mono'), local('Menlo'), local('Consolas');
+  }
+
+  :root {
+    --bg: #fafaf8;
+    --surface: #ffffff;
+    --border: #e2e0db;
+    --text: #1a1917;
+    --text-mid: #5c5a54;
+    --text-dim: #8a877f;
+    --accent: #2563eb;
+    --accent-light: #dbeafe;
+    --best-bg: #f0fdf4;
+    --best-border: #22c55e;
+    --best-text: #15803d;
+    --heat-low: #f1f5f9;
+    --heat-mid: #bfdbfe;
+    --heat-high: #3b82f6;
+    --cfg-tag: #7c3aed;
+    --cfg-tag-bg: #f3f0ff;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141413;
+      --surface: #1e1e1c;
+      --border: #2e2d2a;
+      --text: #e8e6e1;
+      --text-mid: #a09d95;
+      --text-dim: #6b6860;
+      --accent: #60a5fa;
+      --accent-light: #1e3a5f;
+      --best-bg: #0f2918;
+      --best-border: #22c55e;
+      --best-text: #4ade80;
+      --heat-low: #1e1e1c;
+      --heat-mid: #1e3a5f;
+      --heat-high: #3b82f6;
+      --cfg-tag: #a78bfa;
+      --cfg-tag-bg: #1e1530;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141413;
+    --surface: #1e1e1c;
+    --border: #2e2d2a;
+    --text: #e8e6e1;
+    --text-mid: #a09d95;
+    --text-dim: #6b6860;
+    --accent: #60a5fa;
+    --accent-light: #1e3a5f;
+    --best-bg: #0f2918;
+    --best-border: #22c55e;
+    --best-text: #4ade80;
+    --heat-low: #1e1e1c;
+    --heat-mid: #1e3a5f;
+    --heat-high: #3b82f6;
+    --cfg-tag: #a78bfa;
+    --cfg-tag-bg: #1e1530;
+  }
+  :root[data-theme="light"] {
+    --bg: #fafaf8;
+    --surface: #ffffff;
+    --border: #e2e0db;
+    --text: #1a1917;
+    --text-mid: #5c5a54;
+    --text-dim: #8a877f;
+    --accent: #2563eb;
+    --accent-light: #dbeafe;
+    --best-bg: #f0fdf4;
+    --best-border: #22c55e;
+    --best-text: #15803d;
+    --heat-low: #f1f5f9;
+    --heat-mid: #bfdbfe;
+    --heat-high: #3b82f6;
+    --cfg-tag: #7c3aed;
+    --cfg-tag-bg: #f3f0ff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 2rem 1.5rem;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  header {
+    margin-bottom: 2rem;
+  }
+
+  h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 0.25rem;
+  }
+
+  .subtitle {
+    font-size: 0.82rem;
+    color: var(--text-mid);
+  }
+
+  .subtitle code {
+    font-family: 'Mono', monospace;
+    font-size: 0.78rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.1em 0.35em;
+  }
+
+  .best-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--best-bg);
+    border: 1px solid var(--best-border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .best-banner .marker {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--best-text);
+    white-space: nowrap;
+  }
+
+  .best-banner .detail {
+    font-size: 0.85rem;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .best-banner .detail strong {
+    font-weight: 600;
+  }
+
+  .section-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 0.5rem;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    margin-bottom: 2rem;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.85rem;
+  }
+
+  thead th {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    text-align: right;
+    padding: 0.4rem 0.75rem;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+  }
+
+  thead th:first-child,
+  thead th:nth-child(2) {
+    text-align: center;
+  }
+
+  tbody td {
+    text-align: right;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  tbody td:first-child,
+  tbody td:nth-child(2) {
+    text-align: center;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr.row-best {
+    background: var(--best-bg);
+  }
+
+  tbody tr.row-best td {
+    font-weight: 600;
+  }
+
+  .step-group td:first-child {
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .step-divider td {
+    border-top: 2px solid var(--border);
+  }
+
+  .cfg-pill {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.1em 0.45em;
+    border-radius: 3px;
+    background: var(--cfg-tag-bg);
+    color: var(--cfg-tag);
+  }
+
+  .bar-cell {
+    position: relative;
+    padding-right: 0.75rem !important;
+  }
+
+  .bar-cell .bar-bg {
+    position: absolute;
+    left: 0;
+    top: 4px;
+    bottom: 4px;
+    border-radius: 0 3px 3px 0;
+    opacity: 0.25;
+    background: var(--accent);
+    transition: width 0.3s ease;
+  }
+
+  .bar-cell .bar-val {
+    position: relative;
+  }
+
+  .note {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    line-height: 1.6;
+    margin-top: 0.5rem;
+  }
+
+  .findings {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  @media (max-width: 600px) {
+    .findings { grid-template-columns: 1fr; }
+  }
+
+  .finding-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+  }
+
+  .finding-card .label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin-bottom: 0.25rem;
+  }
+
+  .finding-card .value {
+    font-size: 0.9rem;
+    color: var(--text);
+  }
+</style>
+
+<header>
+  <h1>Stable3DiT DFM spg4 — Euler Sampler Sweep</h1>
+  <div class="subtitle">
+    Checkpoint: <code>stable3dit-dfm-spg4</code> &middot; 76.81M params &middot; Euler CTMC sampler &middot; test set eval (seed=0)
+  </div>
+</header>
+
+<div class="best-banner">
+  <span class="marker">Best</span>
+  <span class="detail">
+    <strong>step=1, cfg=1.0</strong> &mdash; BitAcc 0.8577, PatAcc 0.3219, 3.9s
+  </span>
+</div>
+
+<div class="section-label">Findings</div>
+<div class="findings">
+  <div class="finding-card">
+    <div class="label">Step invariance</div>
+    <div class="value">Euler sampler makes step count nearly irrelevant. Step 1 matches or beats step 50 across all CFG values.</div>
+  </div>
+  <div class="finding-card">
+    <div class="label">CFG effect</div>
+    <div class="value">cfg>1 helps at multi-step (PatAcc 0.11 &rarr; 0.28), but <em>hurts</em> at step=1. One-shot denoising doesn't benefit from guidance.</div>
+  </div>
+  <div class="finding-card">
+    <div class="label">Speed</div>
+    <div class="value">cfg>1 adds ~1.7&times; latency (double forward pass). Step=1/cfg=1 is the fastest at 3.9s.</div>
+  </div>
+  <div class="finding-card">
+    <div class="label">Implication</div>
+    <div class="value">With Euler sampler, this model works best as a one-shot predictor &mdash; no iterative refinement needed.</div>
+  </div>
+</div>
+
+<div class="section-label">Full Results &mdash; First Sweep (steps 50/25/10/4)</div>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Steps</th><th>CFG</th><th>BitAcc</th><th>PatAcc</th><th>Time</th></tr>
+    </thead>
+    <tbody>
+      <tr class="step-group"><td rowspan="4">50</td><td><span class="cfg-pill">1.0</span></td><td>0.8184</td><td class="bar-cell"><span class="bar-bg" style="width:34%"></span><span class="bar-val">0.1090</span></td><td>190.8s</td></tr>
+      <tr><td><span class="cfg-pill">1.5</span></td><td>0.8383</td><td class="bar-cell"><span class="bar-bg" style="width:63%"></span><span class="bar-val">0.2026</span></td><td>327.2s</td></tr>
+      <tr><td><span class="cfg-pill">2.0</span></td><td>0.8453</td><td class="bar-cell"><span class="bar-bg" style="width:76%"></span><span class="bar-val">0.2454</span></td><td>327.3s</td></tr>
+      <tr><td><span class="cfg-pill">3.0</span></td><td>0.8498</td><td class="bar-cell"><span class="bar-bg" style="width:86%"></span><span class="bar-val">0.2777</span></td><td>327.4s</td></tr>
+
+      <tr class="step-group step-divider"><td rowspan="4">25</td><td><span class="cfg-pill">1.0</span></td><td>0.8187</td><td class="bar-cell"><span class="bar-bg" style="width:33%"></span><span class="bar-val">0.1077</span></td><td>95.7s</td></tr>
+      <tr><td><span class="cfg-pill">1.5</span></td><td>0.8386</td><td class="bar-cell"><span class="bar-bg" style="width:63%"></span><span class="bar-val">0.2032</span></td><td>163.9s</td></tr>
+      <tr><td><span class="cfg-pill">2.0</span></td><td>0.8457</td><td class="bar-cell"><span class="bar-bg" style="width:76%"></span><span class="bar-val">0.2461</span></td><td>163.6s</td></tr>
+      <tr><td><span class="cfg-pill">3.0</span></td><td>0.8500</td><td class="bar-cell"><span class="bar-bg" style="width:86%"></span><span class="bar-val">0.2783</span></td><td>163.6s</td></tr>
+
+      <tr class="step-group step-divider"><td rowspan="4">10</td><td><span class="cfg-pill">1.0</span></td><td>0.8198</td><td class="bar-cell"><span class="bar-bg" style="width:35%"></span><span class="bar-val">0.1141</span></td><td>38.3s</td></tr>
+      <tr><td><span class="cfg-pill">1.5</span></td><td>0.8393</td><td class="bar-cell"><span class="bar-bg" style="width:65%"></span><span class="bar-val">0.2083</span></td><td>65.6s</td></tr>
+      <tr><td><span class="cfg-pill">2.0</span></td><td>0.8461</td><td class="bar-cell"><span class="bar-bg" style="width:78%"></span><span class="bar-val">0.2520</span></td><td>65.5s</td></tr>
+      <tr><td><span class="cfg-pill">3.0</span></td><td>0.8502</td><td class="bar-cell"><span class="bar-bg" style="width:87%"></span><span class="bar-val">0.2789</span></td><td>65.8s</td></tr>
+
+      <tr class="step-group step-divider"><td rowspan="4">4</td><td><span class="cfg-pill">1.0</span></td><td>0.8248</td><td class="bar-cell"><span class="bar-bg" style="width:43%"></span><span class="bar-val">0.1382</span></td><td>15.5s</td></tr>
+      <tr><td><span class="cfg-pill">1.5</span></td><td>0.8417</td><td class="bar-cell"><span class="bar-bg" style="width:69%"></span><span class="bar-val">0.2212</span></td><td>26.4s</td></tr>
+      <tr><td><span class="cfg-pill">2.0</span></td><td>0.8472</td><td class="bar-cell"><span class="bar-bg" style="width:80%"></span><span class="bar-val">0.2568</span></td><td>26.3s</td></tr>
+      <tr><td><span class="cfg-pill">3.0</span></td><td>0.8506</td><td class="bar-cell"><span class="bar-bg" style="width:88%"></span><span class="bar-val">0.2840</span></td><td>26.2s</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section-label">Extended Sweep (steps 4/2/1, cfg up to 5.0)</div>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Steps</th><th>CFG</th><th>BitAcc</th><th>PatAcc</th><th>Time</th></tr>
+    </thead>
+    <tbody>
+      <tr class="step-group"><td rowspan="5">4</td><td><span class="cfg-pill">1.0</span></td><td>0.8248</td><td class="bar-cell"><span class="bar-bg" style="width:43%"></span><span class="bar-val">0.1382</span></td><td>15.5s</td></tr>
+      <tr><td><span class="cfg-pill">2.0</span></td><td>0.8472</td><td class="bar-cell"><span class="bar-bg" style="width:80%"></span><span class="bar-val">0.2568</span></td><td>25.9s</td></tr>
+      <tr><td><span class="cfg-pill">3.0</span></td><td>0.8506</td><td class="bar-cell"><span class="bar-bg" style="width:88%"></span><span class="bar-val">0.2840</span></td><td>26.1s</td></tr>
+      <tr><td><span class="cfg-pill">4.0</span></td><td>0.8515</td><td class="bar-cell"><span class="bar-bg" style="width:91%"></span><span class="bar-val">0.2916</span></td><td>26.2s</td></tr>
+      <tr><td><span class="cfg-pill">5.0</span></td><td>0.8520</td><td class="bar-cell"><span class="bar-bg" style="width:92%"></span><span class="bar-val">0.2947</span></td><td>26.2s</td></tr>
+
+      <tr class="step-group step-divider"><td rowspan="5">2</td><td><span class="cfg-pill">1.0</span></td><td>0.8352</td><td class="bar-cell"><span class="bar-bg" style="width:58%"></span><span class="bar-val">0.1878</span></td><td>7.7s</td></tr>
+      <tr><td><span class="cfg-pill">2.0</span></td><td>0.8500</td><td class="bar-cell"><span class="bar-bg" style="width:87%"></span><span class="bar-val">0.2788</span></td><td>13.2s</td></tr>
+      <tr><td><span class="cfg-pill">3.0</span></td><td>0.8518</td><td class="bar-cell"><span class="bar-bg" style="width:91%"></span><span class="bar-val">0.2927</span></td><td>13.2s</td></tr>
+      <tr><td><span class="cfg-pill">4.0</span></td><td>0.8521</td><td class="bar-cell"><span class="bar-bg" style="width:92%"></span><span class="bar-val">0.2964</span></td><td>13.2s</td></tr>
+      <tr><td><span class="cfg-pill">5.0</span></td><td>0.8523</td><td class="bar-cell"><span class="bar-bg" style="width:92%"></span><span class="bar-val">0.2967</span></td><td>13.2s</td></tr>
+
+      <tr class="step-group step-divider row-best"><td rowspan="5">1</td><td><span class="cfg-pill">1.0</span></td><td>0.8577</td><td class="bar-cell"><span class="bar-bg" style="width:100%"></span><span class="bar-val">0.3219</span></td><td>3.9s</td></tr>
+      <tr><td><span class="cfg-pill">2.0</span></td><td>0.8551</td><td class="bar-cell"><span class="bar-bg" style="width:97%"></span><span class="bar-val">0.3122</span></td><td>6.6s</td></tr>
+      <tr><td><span class="cfg-pill">3.0</span></td><td>0.8537</td><td class="bar-cell"><span class="bar-bg" style="width:95%"></span><span class="bar-val">0.3064</span></td><td>6.6s</td></tr>
+      <tr><td><span class="cfg-pill">4.0</span></td><td>0.8529</td><td class="bar-cell"><span class="bar-bg" style="width:94%"></span><span class="bar-val">0.3031</span></td><td>6.6s</td></tr>
+      <tr><td><span class="cfg-pill">5.0</span></td><td>0.8525</td><td class="bar-cell"><span class="bar-bg" style="width:93%"></span><span class="bar-val">0.3001</span></td><td>6.6s</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<p class="note">
+  Model: Stable3DiT, DFM, spatial patch grouping (group_size=4, V=16). Sampler: Euler CTMC (state-preserving jump). Eval on full test set with fixed seed=0. Time = wall clock per (steps, cfg) combination including all test batches.
+</p>

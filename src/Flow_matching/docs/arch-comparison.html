@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AR vs Stable3DiT 아키텍처 비교</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  * { margin: 0; }
+  :root{
+    --bg:#f4f5f7; --panel:#ffffff; --ink:#1b1e24; --muted:#5b6472; --line:#d7dbe0;
+    --io:#d7dbe0; --io-ink:#2a2f36;
+    --norm:#bcd3f0; --attn:#f2b878; --ffn:#b4dcab; --cond:#c9b8e6;
+    --hi:#f6cfc9; --hi-ink:#a3352a;
+    --ar:#7c5cbf; --ar-soft:#efe9fa;
+    --dfm:#c67b3f; --dfm-soft:#f8ebdd;
+    --shadow:0 1px 3px rgba(0,0,0,.08),0 6px 18px rgba(0,0,0,.05);
+  }
+  :root[data-theme="dark"]{
+    --bg:#14161a; --panel:#1e2127; --ink:#e7e9ec; --muted:#98a2b2; --line:#333944;
+    --io:#3a414c; --io-ink:#e7e9ec;
+    --norm:#3f5a80; --attn:#a5703a; --ffn:#4a7442; --cond:#5b4a80;
+    --hi:#6e3a34; --hi-ink:#f4b8b0;
+    --ar:#a98be0; --ar-soft:#2a2440;
+    --dfm:#e0a066; --dfm-soft:#3a2c1c;
+    --shadow:0 1px 3px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#14161a; --panel:#1e2127; --ink:#e7e9ec; --muted:#98a2b2; --line:#333944;
+      --io:#3a414c; --io-ink:#e7e9ec;
+      --norm:#3f5a80; --attn:#a5703a; --ffn:#4a7442; --cond:#5b4a80;
+      --hi:#6e3a34; --hi-ink:#f4b8b0;
+      --ar:#a98be0; --ar-soft:#2a2440;
+      --dfm:#e0a066; --dfm-soft:#3a2c1c;
+    }
+  }
+  body{ background:var(--bg); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue","Apple SD Gothic Neo","Noto Sans KR",sans-serif; line-height:1.5; -webkit-font-smoothing:antialiased; }
+  .wrap{ max-width:1180px; margin:0 auto; padding:40px 22px 90px; }
+  h1{ font-size:1.7rem; letter-spacing:-.02em; }
+  h2{ font-size:1.18rem; margin-top:8px; letter-spacing:-.01em; }
+  .sub{ color:var(--muted); margin-top:8px; font-size:.98rem; }
+  section{ margin-top:44px; }
+  .lead{ display:flex; align-items:baseline; gap:10px; border-bottom:1px solid var(--line); padding-bottom:10px; margin-bottom:22px; }
+  .lead .n{ font-variant-numeric:tabular-nums; color:var(--muted); font-weight:700; }
+
+  .cols{ display:grid; grid-template-columns:1fr 1fr; gap:22px; }
+  @media (max-width:820px){ .cols{ grid-template-columns:1fr; } }
+
+  .panel{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px 18px; box-shadow:var(--shadow); }
+  .panel.ar{ border-top:4px solid var(--ar); }
+  .panel.dfm{ border-top:4px solid var(--dfm); }
+  .panel h3{ font-size:1.05rem; display:flex; align-items:center; gap:9px; margin-bottom:4px; }
+  .tag{ font-size:.72rem; font-weight:800; padding:2px 9px; border-radius:999px; color:#fff; letter-spacing:.02em; }
+  .tag.ar{ background:var(--ar); } .tag.dfm{ background:var(--dfm); }
+  .panel .cap{ color:var(--muted); font-size:.82rem; margin-bottom:14px; }
+
+  /* flow stack */
+  .flow{ display:flex; flex-direction:column; align-items:stretch; gap:0; }
+  .node{ border:1.5px solid rgba(0,0,0,.18); border-radius:11px; padding:9px 12px; text-align:center; font-weight:700; font-size:.9rem; position:relative; }
+  .node small{ display:block; font-weight:500; color:var(--muted); font-size:.72rem; margin-top:2px; }
+  .io{ background:var(--io); color:var(--io-ink); }
+  .nm{ background:var(--norm); } .at{ background:var(--attn); } .ff{ background:var(--ffn); } .cd{ background:var(--cond); }
+  .hi{ background:var(--hi); color:var(--hi-ink); border-color:var(--hi-ink); }
+  .block{ background:repeating-linear-gradient(135deg,transparent,transparent 8px,rgba(0,0,0,.03) 8px,rgba(0,0,0,.03) 16px), var(--panel); border:2px dashed var(--muted); font-size:.95rem; padding:13px; }
+  .arrow{ align-self:center; width:2px; height:16px; background:var(--muted); position:relative; }
+  .arrow::after{ content:""; position:absolute; left:50%; bottom:-1px; transform:translateX(-50%); border:5px solid transparent; border-top-color:var(--muted); }
+  .plus{ align-self:center; width:26px; height:26px; border-radius:50%; border:2px solid var(--muted); display:grid; place-items:center; font-weight:800; background:var(--panel); margin:2px 0; }
+  .rowpair{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .rowpair.three{ grid-template-columns:1fr 1fr 1fr; }
+  .sidein{ font-size:.72rem; color:var(--hi-ink); font-weight:700; text-align:center; margin:3px 0; }
+  .modbadge{ font-size:.68rem; color:var(--muted); font-weight:700; }
+
+  /* block detail: main column + side mods */
+  .blockwrap{ display:grid; grid-template-columns:1fr; gap:0; }
+  .mline{ display:flex; align-items:center; gap:8px; justify-content:center; }
+  .mline .lbl{ font-size:.7rem; color:var(--muted); white-space:nowrap; min-width:44px; text-align:left; }
+  .mline .node{ flex:1; }
+
+  table{ width:100%; border-collapse:collapse; font-size:.9rem; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  th,td{ padding:11px 13px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{ background:rgba(0,0,0,.03); font-size:.82rem; letter-spacing:.01em; }
+  :root[data-theme="dark"] th{ background:rgba(255,255,255,.04); }
+  td.ar-c{ color:var(--ar); font-weight:600; } td.dfm-c{ color:var(--dfm); font-weight:600; }
+  tr td:first-child{ font-weight:700; white-space:nowrap; }
+  .key td{ background:var(--hi); color:var(--hi-ink); }
+
+  .callout{ background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--dfm); border-radius:12px; padding:18px 20px; box-shadow:var(--shadow); }
+  .callout h4{ font-size:1.02rem; margin-bottom:8px; }
+  .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:14px; }
+  @media (max-width:820px){ .grid3{ grid-template-columns:1fr; } }
+  .mini{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .mini .h{ font-weight:800; font-size:.9rem; margin-bottom:6px; }
+  .mini.ar .h{ color:var(--ar); } .mini.dfm .h{ color:var(--dfm); } .mini.ctrl .h{ color:var(--hi-ink); }
+  .mini .p{ font-size:.82rem; color:var(--muted); }
+  .pill{ display:inline-block; font-size:.72rem; font-weight:700; padding:2px 8px; border-radius:999px; background:var(--io); color:var(--io-ink); margin-top:8px; }
+  ul.clean{ padding-left:18px; } ul.clean li{ margin:4px 0; font-size:.9rem; }
+  .em{ color:var(--hi-ink); font-weight:700; }
+
+  #themebtn{ position:fixed; right:16px; bottom:16px; z-index:99; background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:999px; padding:9px 14px; font-weight:700; font-size:.82rem; cursor:pointer; box-shadow:var(--shadow); }
+  .foot{ margin-top:40px; color:var(--muted); font-size:.8rem; text-align:center; }
+</style>
+</head>
+<body>
+<button id="themebtn">◐ 테마</button>
+<div class="wrap">
+
+  <header>
+    <h1>AR vs Stable3DiT — 아키텍처 비교</h1>
+    <p class="sub">핵심 질문: DFM의 성능 향상이 <b>패러다임(병렬 flow)</b> 때문인가, 아니면 단지 <b>cross-attention 조건주입 아키텍처</b> 때문인가? &nbsp;→ embedding·조건 처리 방식을 나란히 본다.</p>
+  </header>
+
+  <!-- ============ 1. 전체 스택 ============ -->
+  <section>
+    <div class="lead"><span class="n">1</span><h2>전체 스택 (입력 → 출력)</h2></div>
+    <div class="cols">
+
+      <!-- AR -->
+      <div class="panel ar">
+        <h3><span class="tag ar">AR</span> SmallTransformerAR</h3>
+        <p class="cap">순차 생성 · causal · 32.4M params</p>
+        <div class="flow">
+          <div class="rowpair">
+            <div class="node io">Tokens x&lt;ᵢ<small>(B, L) [BOS, x₀ …]</small></div>
+            <div class="node io">Spectrum y<small>(B, 201)</small></div>
+          </div>
+          <div class="arrow"></div>
+          <div class="rowpair">
+            <div class="node io">Token Embed (V=3) + Pos<small>Embedding(3→512)</small></div>
+            <div class="node hi">Condition Encoder<small>1D ResNet → <b>GlobalPool</b> → 벡터 (B,512)</small></div>
+          </div>
+          <div class="sidein">↓ &nbsp; 조건 = 벡터 1개, 모든 위치에 broadcast 후 <b>덧셈</b></div>
+          <div class="plus">+</div>
+          <div class="modbadge" style="text-align:center">x = tok + pos + cond (additive)</div>
+          <div class="arrow"></div>
+          <div class="node block">N × Transformer Encoder<small>causal mask · N=15 · adaLN✗ · cross-attn✗</small></div>
+          <div class="arrow"></div>
+          <div class="node ff">Linear (→ 1)</div>
+          <div class="arrow"></div>
+          <div class="node io">Next-bit logits<small>(B, L) · P(xᵢ=1 | x&lt;ᵢ, y)</small></div>
+        </div>
+      </div>
+
+      <!-- Stable3DiT -->
+      <div class="panel dfm">
+        <h3><span class="tag dfm">DFM / CFM</span> Stable3DiT</h3>
+        <p class="cap">병렬 정제 · bidirectional · 76.84M params</p>
+        <div class="flow">
+          <div class="rowpair three">
+            <div class="node io">Noised bits x_t<small>(B, 100)</small></div>
+            <div class="node io">Timestep t<small>(B,)</small></div>
+            <div class="node io">Spectrum y<small>(B, 201)</small></div>
+          </div>
+          <div class="arrow"></div>
+          <div class="rowpair three">
+            <div class="node io">Input Proj / Embed + Pos<small>→ (B,100,512)</small></div>
+            <div class="node cd">t → sinusoid → MLP<small>adaLN</small></div>
+            <div class="node hi">Condition Encoder<small>1D ResNet → <b>50토큰 시퀀스</b> (B,50,512)</small></div>
+          </div>
+          <div class="sidein">↓ &nbsp; t는 <b>adaLN</b>, y_seq는 <b>cross-attention</b>으로 주입</div>
+          <div class="arrow"></div>
+          <div class="node block">N × Stable3DiT Block<small>adaLN-Zero(t) · <b>cross-attn(y_seq)</b> · N=15</small></div>
+          <div class="arrow"></div>
+          <div class="node nm">LayerNorm (adaLN-Zero)</div>
+          <div class="arrow"></div>
+          <div class="node ff">Linear</div>
+          <div class="arrow"></div>
+          <div class="node io">Velocity v / Logits p₁<small>(B, 100) · CFM: v, DFM: logit</small></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ 2. 블록 내부 ============ -->
+  <section>
+    <div class="lead"><span class="n">2</span><h2>블록 내부 — 여기가 결정적으로 다르다</h2></div>
+    <div class="cols">
+
+      <!-- AR block -->
+      <div class="panel ar">
+        <h3><span class="tag ar">AR</span> block = 표준 causal Transformer</h3>
+        <p class="cap">self-attention + FFN 2단, 그게 전부</p>
+        <div class="flow">
+          <div class="node io">Input Tokens</div>
+          <div class="arrow"></div>
+          <div class="node at">Multi-Head Self-Attention<small>causal mask</small></div>
+          <div class="arrow"></div>
+          <div class="node nm">Add &amp; LayerNorm</div>
+          <div class="arrow"></div>
+          <div class="node ff">Feed-Forward</div>
+          <div class="arrow"></div>
+          <div class="node nm">Add &amp; LayerNorm</div>
+          <div class="arrow"></div>
+          <div class="node io" style="background:transparent;border:none;color:var(--muted);font-weight:600">→ next layer</div>
+        </div>
+        <ul class="clean" style="margin-top:12px">
+          <li>adaLN <b>없음</b> — timestep t 자체가 없음</li>
+          <li>cross-attention <b>없음</b></li>
+          <li class="em">조건 y는 블록 밖에서 벡터로 한 번 더해질 뿐</li>
+        </ul>
+      </div>
+
+      <!-- Stable3DiT block -->
+      <div class="panel dfm">
+        <h3><span class="tag dfm">DFM / CFM</span> Stable3DiT block = adaLN-Zero + cross-attn</h3>
+        <p class="cap">SA → Cross-Attn(y) → FFN 3단, t로 변조</p>
+        <div class="blockwrap flow">
+          <div class="node io">Input Tokens</div>
+          <div class="arrow"></div>
+          <div class="mline"><span class="lbl">γ₁,β₁</span><div class="node nm">LayerNorm → Scale, Shift</div></div>
+          <div class="arrow"></div>
+          <div class="node at">Multi-Head Self-Attention</div>
+          <div class="mline"><span class="lbl">α₁</span><div class="node nm">Scale</div></div>
+          <div class="plus">+</div>
+          <div class="arrow"></div>
+          <div class="mline"><span class="lbl">&nbsp;</span><div class="node nm">LayerNorm (query)</div></div>
+          <div class="arrow"></div>
+          <div class="mline"><span class="lbl">← y_seq</span><div class="node at hi" style="background:var(--attn)">Multi-Head <b>Cross-Attention</b> (KV = y_seq)</div></div>
+          <div class="mline"><span class="lbl">α₂</span><div class="node nm">Scale</div></div>
+          <div class="plus">+</div>
+          <div class="arrow"></div>
+          <div class="mline"><span class="lbl">γ₃,β₃</span><div class="node nm">LayerNorm → Scale, Shift</div></div>
+          <div class="arrow"></div>
+          <div class="node ff">Feed-Forward</div>
+          <div class="mline"><span class="lbl">α₃</span><div class="node nm">Scale</div></div>
+          <div class="plus">+</div>
+          <div class="arrow"></div>
+          <div class="node io" style="background:transparent;border:none;color:var(--muted);font-weight:600">→ next block</div>
+        </div>
+        <p class="cap" style="margin-top:12px">변조 α,β,γ 는 <b>t → MLP(SiLU) → 7×512</b> 에서 생성 (adaLN-Zero, zero-init → 초기 항등).</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ 3. embedding / 조건 처리 표 ============ -->
+  <section>
+    <div class="lead"><span class="n">3</span><h2>embedding · 조건 처리 — 항목별 대조</h2></div>
+    <table>
+      <thead><tr><th style="width:22%">항목</th><th style="width:39%">AR (SmallTransformerAR)</th><th style="width:39%">Stable3DiT (DFM/CFM)</th></tr></thead>
+      <tbody>
+        <tr><td>입력 토큰 임베딩</td><td class="ar-c">Embedding(V=3, 512) — 이산 {0,1,BOS}, 생성된 토큰</td><td class="dfm-c">binary: Linear(1→512) (±1) / grouped: Embedding(V,512)</td></tr>
+        <tr><td>위치 임베딩</td><td class="ar-c">chain index Embedding</td><td class="dfm-c">bit/patch index Embedding</td></tr>
+        <tr class="key"><td>스펙트럼 임베딩</td><td>1D ResNet → <b>GlobalPool → 벡터 1개 (B,512)</b></td><td>1D ResNet → <b>50토큰 시퀀스 (B,50,512)</b> (pool 안 함)</td></tr>
+        <tr class="key"><td>스펙트럼 주입</td><td><b>additive</b> — 모든 위치에 동일 벡터를 덧셈</td><td><b>cross-attention</b> — 위치별로 주파수 토큰 선택 질의</td></tr>
+        <tr><td>Timestep</td><td class="ar-c">없음</td><td class="dfm-c">adaLN-Zero</td></tr>
+        <tr><td>Attention</td><td class="ar-c">causal (순차)</td><td class="dfm-c">bidirectional SA + cross-attn</td></tr>
+        <tr><td>출력 head</td><td class="ar-c">Linear(512→1) 다음비트 logit</td><td class="dfm-c">Linear(512→1 또는 V)</td></tr>
+        <tr><td>파라미터</td><td class="ar-c">32.4M</td><td class="dfm-c">76.84M</td></tr>
+      </tbody>
+    </table>
+    <p class="sub" style="margin-top:14px"><span class="em">붉은 두 줄이 핵심.</span> AR은 201점 스펙트럼을 <b>벡터 1개로 압축해 똑같이 더하고</b>, Stable3DiT는 <b>50토큰으로 유지해 cross-attention</b>으로 각 픽셀이 필요한 주파수 대역을 선택합니다. additive는 정보 병목, cross-attn은 풍부한 조건 — <b>성능 향상의 상당 부분이 여기서 왔을 수 있습니다.</b></p>
+  </section>
+
+  <!-- ============ 4. confound & 실험 ============ -->
+  <section>
+    <div class="lead"><span class="n">4</span><h2>그래서 — confound 분리 실험</h2></div>
+    <div class="callout">
+      <h4>현재 비교는 세 가지가 섞여 있다</h4>
+      <p class="sub" style="color:var(--ink)">① 패러다임(순차 AR vs 병렬 DFM) &nbsp;·&nbsp; ② 조건주입(additive vs cross-attn) &nbsp;·&nbsp; ③ 파라미터(32M vs 77M). 지금 수치로는 어느 것 덕분인지 구분 불가.</p>
+      <div class="grid3">
+        <div class="mini ar"><div class="h">AR</div><div class="p">순차 causal · additive 조건</div><span class="pill">32.4M</span></div>
+        <div class="mini ctrl"><div class="h">DFM + SmallDiT ★</div><div class="p">병렬 flow · <b>additive 조건(AR과 동일)</b> · no cross-attn / no adaLN</div><span class="pill">32.92M — AR과 사실상 동일</span></div>
+        <div class="mini dfm"><div class="h">DFM + Stable3DiT</div><div class="p">병렬 flow · cross-attn</div><span class="pill">76.84M</span></div>
+      </div>
+      <p class="sub" style="margin-top:16px; color:var(--ink)">
+        <b>SmallDiT(32.92M)</b> = AR과 파라미터·조건주입이 사실상 동일한 대조군 (additive, no cross-attn, bidirectional만 다름).
+        <b>DFM+SmallDiT vs AR</b>을 돌리면 ②③을 고정하고 <span class="em">순수 패러다임만</span> 비교된다:
+      </p>
+      <ul class="clean" style="margin-top:8px">
+        <li>DFM+SmallDiT가 <b>여전히 AR을 이기면</b> → 향상은 <b>패러다임</b> 덕분 (cross-attn 아님)</li>
+        <li>DFM+SmallDiT가 <b>AR 수준으로 떨어지면</b> → 향상은 <b>cross-attention 아키텍처</b> 덕분</li>
+      </ul>
+      <p class="sub" style="margin-top:12px">DFM+Stable3DiT까지 나란히 놓으면 <b>cross-attn이 추가로 얹는 이득</b>도 분리 (2×2 완성).</p>
+    </div>
+  </section>
+
+  <p class="foot">Stable3DiT: d_model 512 · 15 layers · 4 heads · ff 768 &nbsp;|&nbsp; 조건 인코더 공통: 1D ResNet ×3</p>
+</div>
+
+<script>
+  const b=document.getElementById('themebtn');
+  b.onclick=()=>{ const r=document.documentElement;
+    const cur=r.getAttribute('data-theme')|| (matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+    r.setAttribute('data-theme', cur==='dark'?'light':'dark'); };
+</script>
+</body>
+</html>

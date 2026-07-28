@@ -1,0 +1,960 @@
+<title>Flow Matching for Antenna Inverse Design</title>
+<style>
+  :root{
+    --paper:#EEF0F2; --panel:#FFFFFF; --sub:#F5F7F8;
+    --ink:#181C21; --ink-2:#3E464F; --muted:#78818B;
+    --line:#D5DADF; --line-2:#E6EAED;
+    --cfm:#256B7B; --cfm-bg:#DEECEF;
+    --dfm:#A85933; --dfm-bg:#F5E7DF;
+    --ar:#5C5471;  --ar-bg:#E8E5EE;
+    --ok:#2F6B45;  --ok-bg:#DFEDE4;
+    --shadow:0 1px 2px rgba(20,30,40,.05), 0 10px 28px -14px rgba(20,30,40,.2);
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo",
+            "Malgun Gothic", "Noto Sans KR", "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#0F1317; --panel:#181D22; --sub:#1E242A;
+      --ink:#E5E9ED; --ink-2:#AEB7C0; --muted:#7C858F;
+      --line:#2B333A; --line-2:#232A30;
+      --cfm:#6DB2C2; --cfm-bg:#17292F;
+      --dfm:#DA8B5F; --dfm-bg:#33241B;
+      --ar:#A79DC4;  --ar-bg:#25222F;
+      --ok:#80C098;  --ok-bg:#17251C;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 12px 32px -16px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0F1317; --panel:#181D22; --sub:#1E242A;
+    --ink:#E5E9ED; --ink-2:#AEB7C0; --muted:#7C858F;
+    --line:#2B333A; --line-2:#232A30;
+    --cfm:#6DB2C2; --cfm-bg:#17292F;
+    --dfm:#DA8B5F; --dfm-bg:#33241B;
+    --ar:#A79DC4;  --ar-bg:#25222F;
+    --ok:#80C098;  --ok-bg:#17251C;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 12px 32px -16px rgba(0,0,0,.7);
+  }
+  :root[data-theme="light"]{
+    --paper:#EEF0F2; --panel:#FFFFFF; --sub:#F5F7F8;
+    --ink:#181C21; --ink-2:#3E464F; --muted:#78818B;
+    --line:#D5DADF; --line-2:#E6EAED;
+    --cfm:#256B7B; --cfm-bg:#DEECEF;
+    --dfm:#A85933; --dfm-bg:#F5E7DF;
+    --ar:#5C5471;  --ar-bg:#E8E5EE;
+    --ok:#2F6B45;  --ok-bg:#DFEDE4;
+    --shadow:0 1px 2px rgba(20,30,40,.05), 0 10px 28px -14px rgba(20,30,40,.2);
+  }
+
+  body{ background:var(--paper); color:var(--ink); font-family:var(--sans);
+        line-height:1.62; -webkit-font-smoothing:antialiased; }
+  .deck{ max-width:1080px; margin:0 auto; padding:36px 18px 72px;
+         display:flex; flex-direction:column; gap:24px; }
+
+  .slide{ background:var(--panel); border:1px solid var(--line); border-radius:2px;
+          box-shadow:var(--shadow); padding:40px 46px 44px; min-height:590px;
+          display:flex; flex-direction:column; position:relative; }
+  .slide .body{ flex:1; display:flex; flex-direction:column; gap:22px; }
+  .num{ position:absolute; right:46px; top:38px; font-family:var(--mono);
+        font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .kicker{ font-family:var(--mono); font-size:10.5px; letter-spacing:.18em;
+           text-transform:uppercase; color:var(--muted); }
+  h2{ font-size:28px; line-height:1.26; font-weight:660; letter-spacing:-.02em;
+      text-wrap:balance; margin-top:8px; }
+  .lede{ color:var(--ink-2); font-size:15px; max-width:74ch; margin-top:8px; }
+  .hd{ border-bottom:1px solid var(--line-2); padding-bottom:20px; margin-bottom:24px; }
+
+  h3{ font-size:14px; font-weight:640; }
+  p{ font-size:14.5px; color:var(--ink-2); }
+  ul{ list-style:none; padding:0; display:flex; flex-direction:column; gap:8px; }
+  li{ font-size:14.5px; color:var(--ink-2); padding-left:16px; position:relative; }
+  li::before{ content:""; position:absolute; left:0; top:.7em; width:5px; height:5px;
+              border-radius:50%; background:var(--line); }
+  strong{ color:var(--ink); font-weight:620; }
+  em{ font-style:normal; color:var(--muted); }
+  .k{ font-family:var(--mono); font-size:.92em; background:var(--sub);
+      border:1px solid var(--line-2); padding:1px 5px; border-radius:2px; color:var(--ink); }
+  .eq{ font-family:var(--mono); font-size:14px; color:var(--ink); background:var(--sub);
+       border:1px solid var(--line-2); border-radius:2px; padding:12px 16px;
+       overflow-x:auto; text-align:center; }
+
+  pre{ background:var(--sub); border:1px solid var(--line-2); border-radius:2px;
+       padding:14px 16px; overflow-x:auto; font-family:var(--mono);
+       font-size:12.3px; line-height:1.66; color:var(--ink); }
+  pre b{ color:var(--dfm); font-weight:600; }
+  pre i{ color:var(--muted); font-style:normal; }
+  pre u{ color:var(--cfm); text-decoration:none; }
+
+  .g2{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .g3{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  .card{ background:var(--sub); border:1px solid var(--line-2); border-radius:2px;
+         padding:16px 18px; display:flex; flex-direction:column; gap:10px; }
+  .card h3{ font-size:13px; }
+  .card p, .card li{ font-size:13px; }
+  .card.c{ border-top:2px solid var(--cfm); }
+  .card.d{ border-top:2px solid var(--dfm); }
+  .card.a{ border-top:2px solid var(--ar); }
+
+  .tag{ display:inline-block; font-family:var(--mono); font-size:10.5px; font-weight:600;
+        letter-spacing:.08em; text-transform:uppercase; padding:3px 8px; border-radius:2px; }
+  .tag.c{ color:var(--cfm); background:var(--cfm-bg); }
+  .tag.d{ color:var(--dfm); background:var(--dfm-bg); }
+  .tag.a{ color:var(--ar);  background:var(--ar-bg); }
+
+  .tw{ overflow-x:auto; }
+  table{ border-collapse:collapse; width:100%; font-size:13.5px; }
+  th,td{ text-align:left; padding:9px 12px; border-bottom:1px solid var(--line-2); }
+  thead th{ font-family:var(--mono); font-size:10px; letter-spacing:.1em;
+            text-transform:uppercase; color:var(--muted); font-weight:600;
+            border-bottom:1px solid var(--line); white-space:nowrap; }
+  tbody th{ font-weight:600; color:var(--ink); white-space:nowrap; }
+  td{ color:var(--ink-2); }
+  td.n, th.n{ text-align:right; font-family:var(--mono);
+              font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td.hi{ color:var(--ink); font-weight:600; }
+  td.win{ color:var(--ok); font-weight:600; }
+  tr.sep th, tr.sep td{ border-top:1px solid var(--line); }
+  tbody tr:last-child td, tbody tr:last-child th{ border-bottom:none; }
+
+  .note{ font-size:12.5px; color:var(--muted); }
+  .box{ border-left:2px solid var(--ok); background:var(--ok-bg);
+        padding:13px 17px; border-radius:0 2px 2px 0; }
+  .box p{ font-size:13.8px; }
+  .box.w{ border-left-color:var(--dfm); background:var(--dfm-bg); }
+
+  .flow{ display:flex; flex-wrap:wrap; }
+  .st{ flex:1; min-width:140px; padding:13px 15px; background:var(--sub);
+       border:1px solid var(--line-2); border-right:none;
+       display:flex; flex-direction:column; gap:3px; }
+  .st:last-child{ border-right:1px solid var(--line-2); }
+  .st .a{ font-family:var(--mono); font-size:10px; letter-spacing:.1em;
+          text-transform:uppercase; color:var(--muted); }
+  .st .b{ font-family:var(--mono); font-size:12.5px; color:var(--ink); }
+  .st .c{ font-size:12px; color:var(--ink-2); }
+
+  .ph{ border:1px dashed var(--line); border-radius:2px; background:var(--sub);
+       display:flex; flex-direction:column; align-items:center; justify-content:center;
+       gap:8px; min-height:190px; text-align:center; padding:20px; }
+  .ph .t{ font-family:var(--mono); font-size:11px; letter-spacing:.12em;
+          text-transform:uppercase; color:var(--muted); }
+  .ph .d{ font-size:13px; color:var(--ink-2); max-width:46ch; }
+
+  .diag{ width:100%; height:auto; display:block; margin:2px 0 4px; }
+  .diag text{ font-family:var(--mono); fill:var(--ink); }
+  .diag .lbl{ fill:var(--muted); font-size:12px; letter-spacing:.04em; }
+  .diag .big{ font-size:19px; font-weight:600; }
+  .dcap{ font-size:12.5px; color:var(--ink-2); text-align:center; margin-top:2px; }
+  .dcard{ background:var(--sub); border:1px solid var(--line-2); border-radius:2px;
+          border-top:2px solid var(--dfm); padding:16px 18px 14px;
+          display:flex; flex-direction:column; gap:6px; }
+  .dcard h3{ font-size:13px; text-align:center; }
+
+  @media (max-width:800px){
+    .slide{ padding:26px 20px 30px; min-height:0; }
+    .g2,.g3{ grid-template-columns:1fr; }
+    h2{ font-size:23px; }
+    .num{ right:20px; top:24px; }
+  }
+  @media print{
+    body{ background:#fff; }
+    .deck{ padding:0; gap:0; max-width:none; }
+    .slide{ box-shadow:none; border:none; page-break-after:always; min-height:0;
+            padding:24px 28px; }
+  }
+</style>
+
+<div class="deck">
+
+<!-- ================= 1 ================= -->
+<section class="slide">
+  <div class="num">1 / 10</div>
+  <div class="hd">
+    <div class="kicker">Problem</div>
+    <h2>안테나 마스크 역설계</h2>
+    <p class="lede">
+      목표 스펙트럼이 주어지면 그것을 만들어내는 10×10 이진 금속 마스크를 생성한다.
+      기존 접근은 autoregressive (AR) 모델이다.
+      Flow model 로 같은 문제를 풀고 AR 과 비교하는 것이 이 발표의 범위다.
+    </p>
+  </div>
+  <div class="body">
+    <div class="flow">
+      <div class="st">
+        <span class="a">Input</span><span class="b">y ∈ ℝ<sup>201</sup></span>
+        <span class="c">목표 S11 스펙트럼 (201 주파수점)</span>
+      </div>
+      <div class="st">
+        <span class="a">Generate</span><span class="b">b ∈ {0,1}<sup>100</sup></span>
+        <span class="c">10×10 이진 마스크 — 생성모델이 만든다</span>
+      </div>
+      <div class="st">
+        <span class="a">Verify</span><span class="b">ŷ = f<sub>fwd</sub>(b)</span>
+        <span class="c">동결된 forward surrogate CNN 으로 재평가</span>
+      </div>
+    </div>
+
+    <div class="g2">
+      <div class="card">
+        <h3>문제의 성격</h3>
+        <ul>
+          <li>정방향(마스크 → 스펙트럼)은 함수지만 <strong>역방향은 one-to-many</strong> — 같은 스펙트럼을 내는 마스크가 여러 개 있다.</li>
+          <li>따라서 점추정이 아니라 <strong>조건부 분포 p(b | y) 의 샘플링</strong>이 목표다. 생성모델이 필요한 이유.</li>
+          <li>데이터: train 167,430 / test 20,929 쌍.</li>
+        </ul>
+      </div>
+      <div class="card a">
+        <h3><span class="tag a">Baseline</span> &nbsp;AR (snake ordering)</h3>
+        <ul>
+          <li>비트를 snake 순서로 하나씩 예측한다: p(b) = ∏<sub>k</sub> p(b<sub>k</sub> | b<sub>&lt;k</sub>, y).</li>
+          <li>chain rule 을 정확히 따르므로 인수분해 오차가 없다.</li>
+          <li>생성에 100 번의 순차 forward 가 필요하고, 병렬화되지 않는다.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="box">
+      <p>
+        Flow model 은 100 개 픽셀을 매 스텝 병렬로 갱신한다.
+        관심은 적은 스텝으로 AR 의 품질에 도달하는지다.
+        아래에서 두 접근을 본다 — <span class="tag c">CFM</span> 연속 완화,
+        <span class="tag d">DFM</span> 이산 상태 유지.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 2 ================= -->
+<section class="slide">
+  <div class="num">2 / 10</div>
+  <div class="hd">
+    <div class="kicker">Approach 1 · Framework</div>
+    <h2><span class="tag c">CFM</span>&nbsp; 기존 vector field 프레임워크를 그대로 가져온다</h2>
+    <p class="lede">
+      이진 마스크를 연속값으로 완화한 뒤,
+      표준 Continuous Flow Matching 을 수정 없이 적용한다.
+    </p>
+  </div>
+  <div class="body">
+    <div class="flow">
+      <div class="st"><span class="a">Source</span><span class="b">x₀ ~ 𝒩(0, I)</span>
+        <span class="c">표준 가우시안 노이즈</span></div>
+      <div class="st"><span class="a">Target</span><span class="b">x₁ ~ q(x₁)</span>
+        <span class="c">GT 데이터셋. {0,1} → {−1,+1} 임베딩</span></div>
+      <div class="st"><span class="a">Path</span><span class="b">직선 보간</span>
+        <span class="c">두 점을 직선으로 잇는다</span></div>
+      <div class="st"><span class="a">Learn</span><span class="b">velocity v<sub>θ</sub></span>
+        <span class="c">그 직선의 속도를 회귀로 학습</span></div>
+    </div>
+
+    <div class="g2">
+      <div class="card c">
+        <h3>경로와 학습 대상</h3>
+        <div class="eq">x<sub>t</sub> = (1 − t)·x₀ &nbsp;+&nbsp; t·x₁</div>
+        <div class="eq">u<sub>t</sub> = x₁ − x₀ &nbsp;&nbsp;<span style="color:var(--muted)">(직선의 속도)</span></div>
+        <p>
+          모델은 <span class="k">v<sub>θ</sub>(x<sub>t</sub>, t, y)</span> 로 이 속도를 예측하고
+          MSE 회귀로 학습한다. 이진 구조에 대한 별도 처리는 없다 —
+          이미지 생성에 쓰는 CFM 과 동일하다.
+        </p>
+      </div>
+      <div class="card c">
+        <h3>Inference — 적분한 뒤 이산화</h3>
+        <ul>
+          <li>x₀ ~ 𝒩(0, I) 에서 시작해 <strong>Euler 적분</strong>으로 t : 0 → 1.</li>
+          <li>도착한 x₁ 은 <strong>연속값</strong>이다. 아직 이진 마스크가 아니다.</li>
+          <li>그래서 마지막에 <strong>0 을 기준으로 thresholding</strong> 하여 이산화한다:
+            <span class="k">bits = (x &gt; 0)</span></li>
+        </ul>
+        <p class="note">{−1,+1} 임베딩의 중점이 0 이므로 0 이 자연스러운 결정경계다.</p>
+      </div>
+    </div>
+
+    <div class="box w">
+      <p>
+        이 CFM 은 <strong>이진 대상을 연속 완화로 다루는 접근의 baseline</strong> 이다.
+        핵심 문제는 이산성 우회에 있다: 데이터는 {0,1}<sup>100</sup> 격자 위에 있는데
+        연속공간에서 풀고 마지막에 thresholding 으로 되돌린다. 그 과정에서 |x| (per-bit confidence) 는 버려지고,
+        생성 궤적은 데이터가 없는 연속 영역을 지난다.
+      </p>
+      <p class="note">
+        참고: 이 구현이 결정론적인 것은 <span class="k">sigma_min = 0</span> 이라 경로에 노이즈가 없기 때문이다 —
+        CFM 자체의 성질이 아니라 설계 선택이다. stochastic path (σ&gt;0) 를 켜면 CFM 도 다양한 샘플을 낸다.
+        one-to-many / 다양성은 이 baseline 이 다루는 축이 아니다.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 3 ================= -->
+<section class="slide">
+  <div class="num">3 / 10</div>
+  <div class="hd">
+    <div class="kicker">Approach 1 · Code</div>
+    <h2><span class="tag c">CFM</span>&nbsp; Training &amp; Sampling</h2>
+    <p class="lede"><span class="k">flow_matching.py</span> — <span class="k">cfm_loss</span> / <span class="k">sample_fm_cfg</span></p>
+  </div>
+  <div class="body">
+    <div class="g2">
+      <div class="card c">
+        <h3>Training</h3>
+        <pre><i># x1: (B, 100) in {0,1} → {−1,+1} 로 임베딩</i>
+x1 = xb * <b>2</b> - <b>1</b>
+
+<i># 1) 노이즈와 시간 샘플</i>
+x0 = <u>torch</u>.randn_like(x1)         <i># 𝒩(0, I)</i>
+t  = <u>torch</u>.rand(B)                <i># t ~ U(0,1)</i>
+
+<i># 2) 직선 경로 위의 점</i>
+x_t = (<b>1</b> - t) * x0 + t * x1
+
+<i># 3) 회귀 타겟 = 직선의 속도</i>
+u_t = x1 - x0
+
+<i># 4) MSE 회귀</i>
+v    = model(x_t, t, y)             <i># out: ℝ^100</i>
+loss = ((v - u_t) ** <b>2</b>).mean()</pre>
+      </div>
+      <div class="card c">
+        <h3>Sampling</h3>
+        <pre><i># Euler ODE 적분, t: 0 → 1</i>
+x  = <u>torch</u>.randn(B, <b>100</b>)         <i># x0 ~ 𝒩(0, I)</i>
+dt = <b>1.0</b> / N
+
+<b>for</b> i <b>in</b> range(N):
+    t = i * dt
+    v = model(x, t, y)              <i># velocity</i>
+    x = x + v * dt                  <i># clamp 없음</i>
+
+<i># 연속값 → 이진 마스크</i>
+bits = (x &gt; <b>0</b>).long()              <i># thresholding</i></pre>
+        <p class="note">
+          NFE = N (<strong>병렬</strong>). 100 개 픽셀이 매 스텝 한 번에 갱신된다 —
+          AR 의 100 회 순차와 대비되는 지점이다.
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>입력 / 출력</h3>
+      <div class="tw">
+        <table>
+          <thead><tr><th></th><th>입력</th><th>출력</th><th>Loss</th><th>Inference 끝</th></tr></thead>
+          <tbody>
+            <tr>
+              <th style="color:var(--cfm)">CFM</th>
+              <td>x<sub>t</sub> ∈ ℝ<sup>100</sup> <em>(연속)</em>, t, y</td>
+              <td>v ∈ ℝ<sup>100</sup> — <strong>velocity</strong> <em>(확률 아님)</em></td>
+              <td>MSE ‖v − (x₁−x₀)‖²</td>
+              <td>thresholding 필요</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 4 ================= -->
+<section class="slide">
+  <div class="num">4 / 10</div>
+  <div class="hd">
+    <div class="kicker">Approach 2 · Framework</div>
+    <h2><span class="tag d">DFM</span>&nbsp; 이산 상태를 유지한 채, 확률분포의 velocity field 를 학습한다</h2>
+    <p class="lede">
+      연속으로 완화하지 않는다. 각 픽셀의 vocab 을 <strong>{0, 1}</strong> 로 정의하고,
+      모델이 <strong>상태의 확률분포를 직접 예측</strong>하게 한다.
+    </p>
+  </div>
+  <div class="body">
+    <div class="flow">
+      <div class="st"><span class="a">Vocab</span><span class="b">V = {0, 1}</span>
+        <span class="c">픽셀당 2 개 심볼. 상태는 끝까지 이산</span></div>
+      <div class="st"><span class="a">Source</span><span class="b">p₀ = Uniform</span>
+        <span class="c">균등분포에서 출발 (가우시안 아님)</span></div>
+      <div class="st"><span class="a">Target</span><span class="b">p₁ = q(x₁)</span>
+        <span class="c">GT 데이터셋</span></div>
+      <div class="st"><span class="a">Learn</span><span class="b">확률의 velocity</span>
+        <span class="c">분포를 p₀ → p₁ 로 나르는 rate</span></div>
+    </div>
+
+    <div class="dcard" style="border-top-color:var(--dfm)">
+      <h3>모델이 예측하는 것 (V=2) — 픽셀마다 확률을 내고, 거기서 {0,1} 을 뽑는다</h3>
+      <svg class="diag" viewBox="0 0 340 150" style="max-width:440px;margin:0 auto"
+           role="img" aria-label="픽셀별 확률로 0/1 샘플">
+        <text class="lbl" x="68" y="16" text-anchor="middle">픽셀별 P(=금속)</text>
+        <rect x="24" y="24" width="44" height="44" fill="var(--sub)" stroke="var(--line)"/>
+        <rect x="68" y="24" width="44" height="44" fill="var(--sub)" stroke="var(--line)"/>
+        <rect x="24" y="68" width="44" height="44" fill="var(--sub)" stroke="var(--line)"/>
+        <rect x="68" y="68" width="44" height="44" fill="var(--sub)" stroke="var(--line)"/>
+        <text x="46" y="51" text-anchor="middle" font-size="15">0.90</text>
+        <text x="90" y="51" text-anchor="middle" font-size="15">0.20</text>
+        <text x="46" y="95" text-anchor="middle" font-size="15">0.80</text>
+        <text x="90" y="95" text-anchor="middle" font-size="15">0.70</text>
+        <text class="lbl" x="152" y="58" text-anchor="middle" font-size="11">픽셀마다</text>
+        <text class="lbl" x="152" y="72" text-anchor="middle" font-size="11">샘플</text>
+        <line x1="122" y1="90" x2="182" y2="90" stroke="var(--line)" stroke-width="2"/>
+        <path d="M176,85 L184,90 L176,95 Z" fill="var(--muted)"/>
+        <rect x="198" y="24" width="44" height="44" fill="var(--dfm)"/>
+        <rect x="242" y="24" width="44" height="44" fill="var(--sub)" stroke="var(--line)"/>
+        <rect x="198" y="68" width="44" height="44" fill="var(--dfm)"/>
+        <rect x="242" y="68" width="44" height="44" fill="var(--dfm)"/>
+        <rect x="197" y="23" width="90" height="90" fill="none" stroke="var(--dfm)" stroke-width="1.5"/>
+        <text class="lbl" x="242" y="130" text-anchor="middle">뽑힌 마스크</text>
+      </svg>
+      <div class="dcap">이 픽셀별 확률 p<sub>1|t</sub>(x₁ | x<sub>t</sub>) 이 아래 rate 를 결정한다. (V=16 으로 묶는 방법은 6 장)</div>
+    </div>
+
+    <div class="g2">
+      <div class="card d">
+        <h3>1 · 조건부 경로 &nbsp;<em>(x₁ 을 하나 고정했을 때)</em></h3>
+        <div class="eq">p<sub>t</sub>(x | x₁) = t·δ(x, x₁) + (1 − t)·(1/V)</div>
+        <p>
+          각 픽셀을 <strong>확률 t 로 정답값에 유지</strong>하고, 나머지 (1−t) 확률로
+          <strong>uniform 하게 새로 뽑는다</strong>. t=0 이면 완전 균등, t=1 이면 완전 정답.
+        </p>
+      </div>
+      <div class="card d">
+        <h3>2 · Marginalization &nbsp;<em>(데이터셋 전체에 대해)</em></h3>
+        <div class="eq">p<sub>t</sub>(x) = 𝔼<sub>x₁ ~ q</sub> [ p<sub>t</sub>(x | x₁) ]</div>
+        <p>
+          GT 데이터셋을 target 으로 주변화하면, <strong>균등분포에서 데이터분포로 이어지는
+          확률경로 p<sub>t</sub></strong> 가 정의된다.
+        </p>
+      </div>
+    </div>
+
+    <div class="card d">
+      <h3>3 · 이 확률경로를 나르는 velocity field (rate matrix)</h3>
+      <div class="eq">
+        u<sub>t</sub>(v, z) = λ<sub>t</sub> · [ &nbsp;p<sub>1|t</sub>(v | z) &nbsp;−&nbsp; δ(v, z)&nbsp; ] ,
+        &nbsp;&nbsp;&nbsp; λ<sub>t</sub> = 1 / (1 − t)
+      </div>
+      <p>
+        연속 CFM 의 velocity 에 대응하는 이산판이다. 이 rate 는
+        p<sub>1|t</sub>(x₁ | x<sub>t</sub>) 하나로 결정된다 —
+        모델은 rate 를 직접 예측하지 않고 깨끗한 데이터의 사후확률만 예측하며,
+        rate 는 거기서 복원된다.
+      </p>
+      <p class="note">
+        연속 FM 의 &nbsp;v = (x̂₁ − x<sub>t</sub>) / (1 − t)&nbsp; 와 정확히 같은 구조다. &nbsp;·&nbsp;
+        문헌 용어: <em>probability denoiser (x-prediction)</em>, Gat et al., NeurIPS 2024.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ================= 5 ================= -->
+<section class="slide">
+  <div class="num">5 / 10</div>
+  <div class="hd">
+    <div class="kicker">Approach 2 · Code</div>
+    <h2><span class="tag d">DFM</span>&nbsp; Training &amp; Sampling</h2>
+    <p class="lede"><span class="k">flow_matching.py</span> — <span class="k">dfm_loss</span> / <span class="k">sample_dfm_cfg</span></p>
+  </div>
+  <div class="body">
+    <div class="g2">
+      <div class="card d">
+        <h3>Training</h3>
+        <pre><i># x1: (B, 100) in {0,1} — 이산 그대로</i>
+t = <u>torch</u>.rand(B)                  <i># t ~ U(0,1)</i>
+
+<i># 1) 조건부 경로에서 x_t 를 샘플</i>
+<i>#    확률 t 로 유지, 아니면 uniform 재추출</i>
+keep = <u>torch</u>.rand(B, D) &lt; t[:, <u>None</u>]
+rnd  = <u>torch</u>.randint(<b>0</b>, <b>2</b>, (B, D)).float()
+x_t  = <u>torch</u>.where(keep, x1, rnd)
+
+<i># 2) 모델은 깨끗한 x1 의 사후확률을 예측</i>
+logits = model(x_t * <b>2</b> - <b>1</b>, t, y)  <i># ℝ^100</i>
+
+<i># 3) BCE — 타겟은 원본 x1</i>
+loss = F.<u>binary_cross_entropy_with_logits</u>(
+           logits, x1)</pre>
+        <p class="note">
+          <span class="k">*2−1</span> 은 {0,1}→{−1,+1} 입력정규화다. 전단사 아핀변환이라 첫 레이어가 흡수한다.
+        </p>
+      </div>
+      <div class="card d">
+        <h3>Sampling &nbsp;<em>CTMC 유한전이</em></h3>
+        <pre><i># uniform 에서 출발</i>
+x = <u>torch</u>.randint(<b>0</b>, <b>2</b>, (B, D)).float()
+
+<b>for</b> i <b>in</b> range(N):
+    t  = i / N
+    p1 = <u>sigmoid</u>(model(x*<b>2</b>-<b>1</b>, t, y)) <i># P(x1=1)</i>
+
+    <i># 사후확률에서 후보를 뽑고</i>
+    r = (p1 &gt; <b>.5</b>) <b>if</b> last <b>else</b> (rand &lt; p1)
+
+    <i># 확률 a 로만 점프, 나머지는 x_t 유지</i>
+    a = <b>1</b> / (N - i)               <i># = (t'−t)/(1−t)</i>
+    x = <u>torch</u>.where(rand &lt; a, r, x)
+
+<b>return</b> x.long()                    <i># 이미 이진 — 후처리 불필요</i></pre>
+        <p class="note">
+          a ∈ (0,1] 이 자동 보장된다. λ<sub>t</sub> 는 t→1 에서 발산하지만
+          구간을 닫힌형태로 적분해 흡수하므로 clamp 가 필요 없다.
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>입력 / 출력 — CFM 과의 대비</h3>
+      <div class="tw">
+        <table>
+          <thead><tr><th></th><th>입력</th><th>출력</th><th>Loss</th><th>Inference 끝</th></tr></thead>
+          <tbody>
+            <tr>
+              <th style="color:var(--cfm)">CFM</th>
+              <td>x<sub>t</sub> ∈ ℝ<sup>100</sup> <em>(연속)</em></td>
+              <td>v ∈ ℝ<sup>100</sup> — velocity</td>
+              <td>MSE</td>
+              <td>thresholding 필요</td>
+            </tr>
+            <tr>
+              <th style="color:var(--dfm)">DFM</th>
+              <td>x<sub>t</sub> ∈ {0,1}<sup>100</sup> <em>(이산)</em></td>
+              <td class="hi">logits → sigmoid = p<sub>1|t</sub>(x₁ | x<sub>t</sub>, y)</td>
+              <td>BCE</td>
+              <td class="win">이미 이진</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 6 (diagram) ================= -->
+<section class="slide">
+  <div class="num">6 / 10</div>
+  <div class="hd">
+    <div class="kicker">Patchify · 그림으로</div>
+    <h2>Patchify 를 그림으로</h2>
+    <p class="lede">먼저 그림으로 개념을 본다. 위: 픽셀을 묶어 토큰을 만드는 방법. 아래: 그로 인해 달라지는 점. 다음 장에서 코드와 함께 다시 정리한다.</p>
+  </div>
+  <div class="body">
+
+    <!-- 묶기: 2×2 픽셀 → 토큰 -->
+    <div class="dcard" style="border-top-color:var(--dfm)">
+      <h3>2×2 픽셀을 토큰 1 개로 묶는다</h3>
+      <svg class="diag" viewBox="0 0 420 120" role="img" aria-label="2x2 픽셀 배치를 하나의 토큰으로">
+        <rect x="60" y="20" width="34" height="34" fill="var(--dfm)"/>
+        <rect x="94" y="20" width="34" height="34" fill="var(--sub)" stroke="var(--line)"/>
+        <rect x="60" y="54" width="34" height="34" fill="var(--dfm)"/>
+        <rect x="94" y="54" width="34" height="34" fill="var(--dfm)"/>
+        <rect x="59" y="19" width="70" height="70" fill="none" stroke="var(--dfm)" stroke-width="2"/>
+        <text class="lbl" x="94" y="106" text-anchor="middle">하나의 2×2 배치</text>
+        <line x1="142" y1="54" x2="180" y2="54" stroke="var(--line)" stroke-width="2"/>
+        <path d="M174,49 L182,54 L174,59 Z" fill="var(--muted)"/>
+        <rect x="204" y="34" width="86" height="40" rx="4" fill="var(--dfm-bg)" stroke="var(--dfm)"/>
+        <text class="big" x="247" y="60" text-anchor="middle" fill="var(--dfm)">토큰</text>
+        <text class="lbl" x="247" y="106" text-anchor="middle">16 가지 중 하나</text>
+      </svg>
+      <div class="dcap">2×2 흑백 배치는 2⁴ = <strong>16 가지</strong> → 각 배치를 토큰 하나로 (vocab 16)</div>
+    </div>
+
+    <!-- 핵심: 확률을 정하는 대상이 다르다 -->
+    <div class="g2">
+      <div class="dcard">
+        <h3>g=1 · 픽셀마다 확률 &nbsp;<em>(4 장에서 본 방식)</em></h3>
+        <svg class="diag" viewBox="0 0 340 150" role="img" aria-label="픽셀별 확률로 0/1 샘플">
+          <text class="lbl" x="68" y="16" text-anchor="middle">픽셀별 P(=금속)</text>
+          <rect x="24" y="24" width="44" height="44" fill="var(--sub)" stroke="var(--line)"/>
+          <rect x="68" y="24" width="44" height="44" fill="var(--sub)" stroke="var(--line)"/>
+          <rect x="24" y="68" width="44" height="44" fill="var(--sub)" stroke="var(--line)"/>
+          <rect x="68" y="68" width="44" height="44" fill="var(--sub)" stroke="var(--line)"/>
+          <text x="46" y="51" text-anchor="middle" font-size="15">0.90</text>
+          <text x="90" y="51" text-anchor="middle" font-size="15">0.20</text>
+          <text x="46" y="95" text-anchor="middle" font-size="15">0.80</text>
+          <text x="90" y="95" text-anchor="middle" font-size="15">0.70</text>
+          <text class="lbl" x="152" y="58" text-anchor="middle" font-size="11">픽셀마다</text>
+          <text class="lbl" x="152" y="72" text-anchor="middle" font-size="11">따로 뽑기</text>
+          <line x1="122" y1="90" x2="182" y2="90" stroke="var(--line)" stroke-width="2"/>
+          <path d="M176,85 L184,90 L176,95 Z" fill="var(--muted)"/>
+          <rect x="198" y="24" width="44" height="44" fill="var(--dfm)"/>
+          <rect x="242" y="24" width="44" height="44" fill="var(--sub)" stroke="var(--line)"/>
+          <rect x="198" y="68" width="44" height="44" fill="var(--dfm)"/>
+          <rect x="242" y="68" width="44" height="44" fill="var(--dfm)"/>
+          <rect x="197" y="23" width="90" height="90" fill="none" stroke="var(--dfm)" stroke-width="1.5"/>
+          <text class="lbl" x="242" y="130" text-anchor="middle">뽑힌 배치</text>
+        </svg>
+        <div class="dcap">픽셀마다 확률을 정하고, 각 픽셀을 금속/빈칸으로 <strong>따로</strong> 뽑는다</div>
+      </div>
+
+      <div class="dcard" style="border-top-color:var(--dfm)">
+        <h3>g=4 · 배치마다 확률</h3>
+        <svg class="diag" viewBox="0 0 340 150" role="img" aria-label="16개 배치 분포에서 한 번 샘플">
+          <text class="lbl" x="8" y="16">16 가지 배치 각각의 확률</text>
+          <line x1="8" y1="118" x2="250" y2="118" stroke="var(--line)"/>
+          <rect x="8"   y="116" width="12" height="2"  fill="var(--ink-2)" opacity="0.45"/>
+          <rect x="23"  y="116" width="12" height="2"  fill="var(--ink-2)" opacity="0.45"/>
+          <rect x="38"  y="116" width="12" height="2"  fill="var(--ink-2)" opacity="0.45"/>
+          <rect x="53"  y="116" width="12" height="2"  fill="var(--ink-2)" opacity="0.45"/>
+          <rect x="68"  y="116" width="12" height="2"  fill="var(--ink-2)" opacity="0.45"/>
+          <rect x="83"  y="104" width="12" height="14" fill="var(--ink-2)" opacity="0.45"/>
+          <rect x="98"  y="116" width="12" height="2"  fill="var(--ink-2)" opacity="0.45"/>
+          <rect x="113" y="116" width="12" height="2"  fill="var(--ink-2)" opacity="0.45"/>
+          <rect x="128" y="116" width="12" height="2"  fill="var(--ink-2)" opacity="0.45"/>
+          <rect x="143" y="92"  width="12" height="26" fill="var(--ink-2)" opacity="0.45"/>
+          <rect x="158" y="116" width="12" height="2"  fill="var(--ink-2)" opacity="0.45"/>
+          <rect x="173" y="108" width="12" height="10" fill="var(--ink-2)" opacity="0.45"/>
+          <rect x="188" y="116" width="12" height="2"  fill="var(--ink-2)" opacity="0.45"/>
+          <rect x="203" y="34"  width="12" height="84" fill="var(--dfm)"/>
+          <rect x="218" y="116" width="12" height="2"  fill="var(--ink-2)" opacity="0.45"/>
+          <rect x="233" y="74"  width="12" height="44" fill="var(--ink-2)" opacity="0.45"/>
+          <text x="209" y="28" text-anchor="middle" font-size="11" fill="var(--dfm)">0.42</text>
+          <line x1="258" y1="68" x2="278" y2="68" stroke="var(--line)" stroke-width="2"/>
+          <path d="M272,63 L280,68 L272,73 Z" fill="var(--muted)"/>
+          <rect x="292" y="46" width="20" height="20" fill="var(--dfm)"/>
+          <rect x="312" y="46" width="20" height="20" fill="var(--sub)" stroke="var(--line)"/>
+          <rect x="292" y="66" width="20" height="20" fill="var(--dfm)"/>
+          <rect x="312" y="66" width="20" height="20" fill="var(--dfm)"/>
+          <text class="lbl" x="312" y="102" text-anchor="middle">뽑힌 배치</text>
+        </svg>
+        <div class="dcap">16 가지 배치 전체에 확률을 정하고, 그중 하나를 <strong>통째로</strong> 뽑는다</div>
+      </div>
+    </div>
+
+    <p class="note" style="text-align:center">
+      두 방법 모두 같은 배치가 나올 수 있다. 차이는 <strong>확률을 어디에 두는가</strong>다 —
+      g=1 은 픽셀을 따로 뽑으므로 "왼쪽 위가 금속이면 아래도 금속" 같은 <strong>픽셀 사이의 관계</strong>를 표현하지 못하고,
+      g=4 는 16 가지 배치에 직접 확률을 주므로 그 관계를 담을 수 있다.
+    </p>
+
+    <!-- 부수 효과: collision, 노이징 단위 -->
+    <div class="g2">
+      <div class="dcard">
+        <h3>collision — 노이즈가 원래 값과 우연히 같을 확률</h3>
+        <svg class="diag" viewBox="0 0 250 128" role="img" aria-label="원래 값과 같을 확률">
+          <text class="lbl" x="66" y="22" text-anchor="middle">V=2</text>
+          <circle cx="66" cy="66" r="32" fill="var(--sub)" stroke="var(--line)"/>
+          <path d="M66,66 L66,34 A32,32 0 0 1 66,98 Z" fill="var(--dfm)"/>
+          <text class="lbl" x="66" y="120" text-anchor="middle">1/2</text>
+          <text class="lbl" x="184" y="22" text-anchor="middle">V=16</text>
+          <circle cx="184" cy="66" r="32" fill="var(--sub)" stroke="var(--line)"/>
+          <path d="M184,66 L184,34 A32,32 0 0 1 196.2,35.6 Z" fill="var(--dfm)"/>
+          <text class="lbl" x="184" y="120" text-anchor="middle">1/16</text>
+        </svg>
+        <div class="dcap">묶을수록 이 확률이 낮아진다 → 노이즈를 줬을 때 실제로 더 많이 바뀐다</div>
+      </div>
+
+      <div class="dcard">
+        <h3>노이징 단위 — 비트마다 vs 패치 통째로</h3>
+        <svg class="diag" viewBox="0 0 250 128" role="img" aria-label="비트 단위 대 패치 단위 노이징">
+          <text class="lbl" x="62" y="22" text-anchor="middle">g=1</text>
+          <rect x="36" y="36" width="26" height="26" fill="var(--dfm)"/>
+          <rect x="62" y="36" width="26" height="26" fill="var(--line)" stroke="var(--muted)" stroke-dasharray="3 2"/>
+          <rect x="36" y="62" width="26" height="26" fill="var(--line)" stroke="var(--muted)" stroke-dasharray="3 2"/>
+          <rect x="62" y="62" width="26" height="26" fill="var(--dfm)"/>
+          <text class="lbl" x="62" y="106" text-anchor="middle">비트마다 따로</text>
+          <line x1="128" y1="22" x2="128" y2="108" stroke="var(--line-2)"/>
+          <text class="lbl" x="192" y="22" text-anchor="middle">g=4</text>
+          <rect x="150" y="42" width="17" height="17" fill="var(--dfm)"/>
+          <rect x="167" y="42" width="17" height="17" fill="var(--dfm)"/>
+          <rect x="150" y="59" width="17" height="17" fill="var(--dfm)"/>
+          <rect x="167" y="59" width="17" height="17" fill="var(--dfm)"/>
+          <text class="lbl" x="200" y="64" text-anchor="middle">or</text>
+          <rect x="216" y="42" width="17" height="17" fill="var(--line)" stroke="var(--muted)" stroke-dasharray="3 2"/>
+          <rect x="233" y="42" width="17" height="17" fill="var(--line)" stroke="var(--muted)" stroke-dasharray="3 2"/>
+          <rect x="216" y="59" width="17" height="17" fill="var(--line)" stroke="var(--muted)" stroke-dasharray="3 2"/>
+          <rect x="233" y="59" width="17" height="17" fill="var(--line)" stroke="var(--muted)" stroke-dasharray="3 2"/>
+          <text class="lbl" x="192" y="106" text-anchor="middle">패치 통째로</text>
+        </svg>
+        <div class="dcap">유지/교체가 비트 단위인가 패치 단위인가</div>
+      </div>
+    </div>
+
+    <p class="note" style="text-align:center">
+      <span style="display:inline-block;width:11px;height:11px;background:var(--dfm);vertical-align:-1px"></span> 금속 (1) &nbsp;·&nbsp;
+      <span style="display:inline-block;width:11px;height:11px;background:var(--sub);border:1px solid var(--line);vertical-align:-1px"></span> 빈 곳 (0) &nbsp;·&nbsp;
+      <span style="display:inline-block;width:11px;height:11px;background:var(--line);border:1px dashed var(--muted);vertical-align:-1px"></span> 노이즈로 교체됨
+    </p>
+  </div>
+</section>
+
+<!-- ================= 7 ================= -->
+<section class="slide">
+  <div class="num">7 / 10</div>
+  <div class="hd">
+    <div class="kicker">Approach 2+ · Vocab merging</div>
+    <h2><span class="tag d">Patchify</span>&nbsp; 픽셀을 묶어 vocab 을 키운다</h2>
+    <p class="lede">
+      DFM 을 V=2 로 그대로 쓰면 학습이 잘 되지 않는다. 원인은 collision 이다.
+    </p>
+  </div>
+  <div class="body">
+    <div class="g2">
+      <div class="card d">
+        <h3>문제 — collision</h3>
+        <p>
+          "uniform 하게 새로 뽑는다"고 했지만, 새로 뽑은 심볼이
+          <strong>우연히 원래 값과 같을 확률이 1/V</strong> 다.
+          따라서 실제 flip 확률은 <strong>(1 − t) · (V−1)/V</strong> 이다.
+        </p>
+        <div class="tw">
+          <table>
+            <thead><tr><th>V</th><th class="n">collision</th><th class="n">t=0 실제 flip</th></tr></thead>
+            <tbody>
+              <tr><th>2</th><td class="n">0.500</td><td class="n hi">0.500</td></tr>
+              <tr><th>16</th><td class="n">0.063</td><td class="n">0.938</td></tr>
+              <tr><th>1024</th><td class="n">0.001</td><td class="n">0.999</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          V=2 는 t=0 (완전 노이즈) 에서도 절반만 뒤집힌다.
+          노이즈가 섞인 입력과 원본을 구분할 신호가 약해 gradient 가 잘 서지 않는다.
+        </p>
+      </div>
+      <div class="card d">
+        <h3>해법 — 2×2 공간 패치를 1 토큰으로 (g=4, V=16)</h3>
+        <pre><i># raster 로 묶으면 1×4 가로줄이 된다 →</i>
+<i># 2×2 공간 패치 순서로 재배열 후 묶는다</i>
+fwd, inv = make_spatial_patch_indices(H, W, <b>2</b>, <b>2</b>)
+X = X[:, fwd]
+
+<i># 4 bits → 1 token ∈ {0..15}</i>
+tok = bits_to_tokens(x1, group_size=<b>4</b>)
+
+<i># 노이징: 토큰 단위 uniform 재추출</i>
+keep  = <u>torch</u>.rand(B, T) &lt; t[:, <u>None</u>]
+tok_t = <u>torch</u>.where(keep, tok,
+          <u>torch</u>.randint(<b>0</b>, <b>16</b>, (B, T)))
+
+<i># Loss: BCE → Cross-entropy 로 바뀐다</i>
+loss = F.<u>cross_entropy</u>(
+    model(tok_t, t, y).reshape(-<b>1</b>, <b>16</b>),
+    tok.reshape(-<b>1</b>))
+
+<i># Sampling 은 동일. multinomial 로 토큰을 뽑고</i>
+<i># 같은 a = 1/(N−i) 로 점프 여부만 결정한다.</i></pre>
+      </div>
+    </div>
+
+    <h3>Patchify 로 달라지는 점</h3>
+    <div class="g3">
+      <div class="card d">
+        <h3>1 · 출력 형태</h3>
+        <p>
+          g=1 은 비트별 베르누이 100 개를 독립으로 출력한다.
+          g=4 는 토큰당 16-way categorical 을 출력하므로, 묶인 4 비트의 결합분포를 표현한다.
+        </p>
+      </div>
+      <div class="card d">
+        <h3>2 · collision &nbsp;<em>(측정됨)</em></h3>
+        <p>
+          uniform 재추출이 원래 값과 같을 확률이 1/2 → 1/16 로 낮아진다.
+          t=0 의 실제 flip 확률이 0.500 → 0.938 이 된다.
+          07-05 에서 관찰한 V=2 학습 부진과 직접 연결된다.
+        </p>
+      </div>
+      <div class="card d">
+        <h3>3 · 노이징이 적용되는 단위</h3>
+        <p>
+          g=1 은 비트마다 독립으로 유지/교체하므로 2×2 패치가 통째로 유지될 확률이 t⁴,
+          g=4 는 토큰 단위라 t 이다 (t=0.5 에서 0.0625 vs 0.5).
+          유지/교체가 개별 비트가 아니라 패치 단위로 일어난다.
+        </p>
+      </div>
+    </div>
+    <p class="note">
+      전자기적으로 인접한 셀을 한 토큰에 넣기 위해 raster 대신 2×2 공간 패치로 재배열한다.
+    </p>
+  </div>
+</section>
+
+<!-- ================= 8 ================= -->
+<section class="slide">
+  <div class="num">8 / 10</div>
+  <div class="hd">
+    <div class="kicker">Results · Training</div>
+    <h2>학습 곡선</h2>
+    <p class="lede">
+      동일 백본 (Stable3DiT 76.8M · L=15 · d=512 · nhead=4 · dim_ff=768),
+      500 epochs · bs=128 · lr=1e-4.
+    </p>
+  </div>
+  <div class="body">
+    <div class="ph">
+      <span class="t">wandb capture</span>
+      <span class="d">train / val loss — CFM (MSE) · DFM V=2 (BCE) · DFM V=16 (CE)</span>
+    </div>
+    <div class="ph">
+      <span class="t">wandb capture</span>
+      <span class="d">val BitAcc / PatAcc — patchify (V=16) 의 효과가 드러나는 지점</span>
+    </div>
+    <p class="note">
+      CFG 용 체크포인트는 <span class="k">drop_prob 0.1</span> (조건을 10% 확률로 drop 해 uncond 도 함께 학습),
+      비교군은 <span class="k">0.0</span>.
+    </p>
+  </div>
+</section>
+
+<!-- ================= 8 ================= -->
+<section class="slide">
+  <div class="num">9 / 10</div>
+  <div class="hd">
+    <div class="kicker">Results · Evaluation</div>
+    <h2>평가 결과 — DFM + patchify 가 AR 을 앞선다</h2>
+    <p class="lede">
+      주 지표는 <strong>notch-region MSE</strong> — 논문 저자 코드(<span class="k">loss_function_notch_mse</span>)를 그대로 썼다.
+      공진 test 타겟 2,000 개, guidance 없음 (cfg = 1.0), FM steps = 10, AR temperature = 1.0. 동일 프로토콜.
+      notch MSE·valid@10 은 후보 10 개 중 best-of-10, BitAcc·PatAcc 는 후보 1 개(pass@1) 기준이다.
+    </p>
+  </div>
+  <div class="body">
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>모델</th><th class="n">NFE</th>
+            <th class="n">BitAcc ↑<br><em>sanity</em></th>
+            <th class="n">PatAcc ↑<br><em>sanity</em></th>
+            <th class="n">notch MSE ↓<br><em>주 지표</em></th>
+            <th class="n">valid@10 ↑</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th style="color:var(--ar)">AR (snake)</th>
+            <td class="n hi">100 <strong>순차</strong></td>
+            <td class="n">0.539</td><td class="n">0.000</td>
+            <td class="n hi">39.60</td><td class="n win">0.633</td>
+          </tr>
+          <tr class="sep">
+            <th style="color:var(--cfm)">CFM</th>
+            <td class="n">10 병렬</td>
+            <td class="n">0.730</td><td class="n">0.005</td>
+            <td class="n">60.64</td><td class="n">0.398</td>
+          </tr>
+          <tr>
+            <th style="color:var(--dfm)">DFM &nbsp;V=2</th>
+            <td class="n">10 병렬</td>
+            <td class="n">0.809</td><td class="n win">0.141</td>
+            <td class="n">44.98</td><td class="n">0.517</td>
+          </tr>
+          <tr>
+            <th style="color:var(--dfm)">DFM &nbsp;V=16 &nbsp;<em>patchify</em></th>
+            <td class="n win">10 <strong>병렬</strong></td>
+            <td class="n win">0.831</td><td class="n">0.115</td>
+            <td class="n win">36.53</td><td class="n">0.591</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="g3">
+      <div class="card d">
+        <h3>1 · DFM V=16 이 AR 을 앞선다</h3>
+        <p>
+          notch MSE <strong>36.53 vs 39.60</strong> — DFM 이 낮다.
+          그리고 AR 은 100 회 순차인 반면 DFM 은 <strong>10 회 병렬</strong>이다.
+          guidance 없이 얻은 결과다.
+        </p>
+      </div>
+      <div class="card d">
+        <h3>2 · V=2 와 V=16 의 차이</h3>
+        <p>
+          같은 조건에서 V=2 는 44.98, V=16 은 36.53 이다.
+          V=2 는 AR (39.60) 도 넘지 못한다.
+          collision 의 영향이 성능 차이로 나타난다.
+        </p>
+      </div>
+      <div class="card c">
+        <h3>3 · CFM (이산성 우회 baseline)</h3>
+        <p>
+          CFM 은 주 지표에서 가장 높다 (60.64).
+          이진 대상을 연속으로 풀고 thresholding 으로 되돌리는 데서 오는 손해다 —
+          DFM 은 상태를 이산으로 유지하고, 그 차이가 주 지표에 나타난다.
+        </p>
+      </div>
+    </div>
+
+    <div class="box w">
+      <p>
+        <strong>지표 참고.</strong> notch MSE 는 타겟이 −10 dB 이하인 <em>공진 구간에서만</em> 잰 MSE 다
+        (test 타겟의 74% 는 공진이 없어 전체 스펙트럼 평균은 신호가 희석된다).
+        지표 정의·코드는 논문을 그대로 따랐으나, <strong>측정 대상(우리 test set)과 후보 예산(best-of-10)이 논문과 달라</strong>
+        논문의 절대값(dual-band, 35,500 후보)과 직접 비교하는 수치가 아니다. 목적은 <strong>AR vs FM 의 상대 비교</strong>다.
+      </p>
+      <p class="note">
+        valid@10 (10 개 중 하나라도 모든 notch 를 −12 dB 아래로 만드는 비율) 은 AR 이 약간 높다 (0.633 vs 0.591) —
+        후보 다양성은 AR 이 넓지만, <strong>best 후보의 품질(notch MSE)</strong>은 DFM 이 앞선다.
+        BitAcc·PatAcc 는 GT 마스크와의 일치율이라 one-to-many 에서 유효한 대안 해를 벌주는 sanity 지표다.
+        AR 은 teacher forcing 이 아니라 실제 100 스텝 생성으로 평가했다.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 9 ================= -->
+<section class="slide">
+  <div class="num">10 / 10</div>
+  <div class="hd">
+    <div class="kicker">Results · Steps</div>
+    <h2>스텝 수에 따른 후보 다양성과 notch MSE</h2>
+    <p class="lede">
+      DFM V=16, guidance 없음 (cfg = 1.0), 공진 test 2,000 타겟, best-of-10.
+    </p>
+  </div>
+  <div class="body">
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th class="n">NFE (steps)</th>
+            <th class="n">평균 Hamming<br>거리</th>
+            <th class="n">서로 다른<br>후보 / 10</th>
+            <th class="n">BitAcc ↑</th>
+            <th class="n">PatAcc ↑</th>
+            <th class="n">notch MSE ↓<br><em>주 지표</em></th>
+            <th class="n">valid@10 ↑</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="n hi">1</td>
+            <td class="n">1.5</td><td class="n">3.5</td>
+            <td class="n">0.871</td><td class="n">0.324</td>
+            <td class="n hi">58.68</td><td class="n">0.429</td>
+          </tr>
+          <tr>
+            <td class="n">2</td>
+            <td class="n">10.2</td><td class="n">8.0</td>
+            <td class="n">0.850</td><td class="n">0.182</td>
+            <td class="n">36.06</td><td class="n">0.590</td>
+          </tr>
+          <tr>
+            <td class="n">4</td>
+            <td class="n">13.3</td><td class="n">8.7</td>
+            <td class="n">0.837</td><td class="n">0.134</td>
+            <td class="n">35.62</td><td class="n">0.593</td>
+          </tr>
+          <tr>
+            <td class="n">10</td>
+            <td class="n">14.6</td><td class="n">9.0</td>
+            <td class="n">0.831</td><td class="n">0.115</td>
+            <td class="n">36.53</td><td class="n">0.591</td>
+          </tr>
+          <tr>
+            <td class="n">50</td>
+            <td class="n">14.8</td><td class="n">9.1</td>
+            <td class="n">0.831</td><td class="n">0.108</td>
+            <td class="n">36.42</td><td class="n">0.604</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="note">
+      Hamming 거리 = 같은 타겟에 대해 생성한 후보 10 개가 서로 평균 몇 비트 다른가 (100 비트 중).
+      9 장의 결과는 steps = 10 에서 잰 값이다.
+    </p>
+  </div>
+</section>
+
+
+
+</div>

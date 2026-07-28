@@ -835,7 +835,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--data_root", type=str,
-        default=os.path.join("../data/1123_codes/", "1122_dataset")
+        default=os.path.join("../data/year/datasets/pa10x10/60_density_500000_dataset/")
     )
     parser.add_argument("--save_dir", type=str, default="./transformer_ar_inverse_models")
 

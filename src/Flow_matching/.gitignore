@@ -1,0 +1,9 @@
+# 대용량/재생성 가능 산출물은 git 제외 (체크포인트 300~900MB)
+experiments/
+wandb/
+table1_out/
+__pycache__/
+*.log
+*.npz
+*.pth
+nohup.out

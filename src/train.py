@@ -133,9 +133,9 @@ def main(args):
 
     # --- Data ---
     data_root = args.data_root
-    train_data = np.load(os.path.join(data_root, "training", "training_data.npz"), mmap_mode='r')
-    val_data   = np.load(os.path.join(data_root, "validation", "validation_data.npz"), mmap_mode='r')
-    test_data  = np.load(os.path.join(data_root, "test", "test_data.npz"), mmap_mode='r')
+    train_data = np.load(os.path.join(data_root, "dataset_train.npz"), mmap_mode='r')
+    val_data   = np.load(os.path.join(data_root, "dataset_valid.npz"), mmap_mode='r')
+    test_data  = np.load(os.path.join(data_root, "dataset_test.npz"), mmap_mode='r')
 
     X_train = train_data["X"].astype(np.float32)
     Y_train = train_data["Y"].astype(np.float32)
@@ -278,7 +278,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # 데이터/출력
-    parser.add_argument("--data_root", type=str, default="../data/Rogers_dataset")
+    parser.add_argument("--data_root", type=str, default="/hai/home/lsh/antenna/year_hai/data/year/datasets/pa10x10/60_density_500000_dataset")
     parser.add_argument("--save_dir", type=str, default=".")
     # 모델 하이퍼파라미터
     parser.add_argument("--stage_blocks", type=parse_int_list, default=parse_int_list("2,2,2,2"))
